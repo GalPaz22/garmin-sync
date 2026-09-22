@@ -116,5 +116,9 @@ test('a failed run settles into an error state instead of staying "running"', as
   } while (body.running && Date.now() < deadline);
 
   assert.equal(body.running, false, 'the run slot must be released');
-  assert.ok(['error', 'done'].includes(body.state), `expected a settled state, got ${body.state}`);
+  // Not merely "settled": a run whose storefront could not be reached must say
+  // so. The Woo pipeline used to swallow the failure and return its logs, and
+  // the run was then recorded as done with an empty catalog behind it.
+  assert.equal(body.state, 'error', 'a run that fetched nothing must not report done');
+  assert.ok(body.lastError, 'the failure reason must reach the dashboard');
 });
