@@ -21,11 +21,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.set('trust proxy', 1);
 
 // CORS configuration (allow local dev origins + .env overrides)
+// The dashboard is normally served by this service, so same-origin requests
+// need no entry here. These cover opening the page from somewhere else.
 const defaultAllowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5500',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5500',
+  'https://garmin-sync-75yx.onrender.com',
   'https://www.semantix.co.il',
   'https://semantix-ai.com',
   'https://www.semantix-ai.com'

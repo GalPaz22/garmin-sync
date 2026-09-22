@@ -26,7 +26,7 @@ globalThis.__mongoStub = {
 
 register(pathToFileURL(new URL('./helpers/mongodbStubLoader.mjs', import.meta.url).pathname));
 
-const { resolveGarminStore, resolveStoreConfig, describeMatch } = await import('../lib/garminStore.js');
+const { resolveGarminStore, resolveStoreConfig, describeMatch, describeConnection } = await import('../lib/garminStore.js');
 
 test('an exact name match wins over a store that merely contains the name', () => {
   // "garmin-accessories" also contains "garmin"; picking it would sync the
@@ -85,4 +85,50 @@ test('the match description names the field a caller can verify against', () => 
   assert.equal(describeMatch({ email: 'info@garmin.co.il' }, 'garmin').field, 'email');
   assert.equal(describeMatch({ email: 'info@garmin.co.il' }, 'garmin').exact, false);
   assert.equal(describeMatch({ dbName: 'polar' }, 'garmin').field, null);
+});
+
+test('the connection summary reports the woo mode a run will actually use', () => {
+  const withKeys = describeConnection({
+    platform: 'woocommerce',
+    credentials: { wooUrl: 'https://garmin.co.il', wooKey: 'ck_live', wooSecret: 'cs_live' }
+  });
+  assert.equal(withKeys.url, 'https://garmin.co.il');
+  assert.equal(withKeys.hasApiCredentials, true);
+  assert.equal(withKeys.mode, 'woo-rest-api');
+
+  // Without key and secret the pipeline silently falls back to the public
+  // endpoint and returns a thinner catalog, so that has to be visible.
+  const withoutKeys = describeConnection({
+    platform: 'woocommerce',
+    credentials: { wooUrl: 'https://garmin.co.il' }
+  });
+  assert.equal(withoutKeys.hasApiCredentials, false);
+  assert.equal(withoutKeys.mode, 'woo-public-fallback');
+
+  const missingUrl = describeConnection({ platform: 'woocommerce', credentials: {} });
+  assert.equal(missingUrl.url, null);
+});
+
+test('the connection summary never carries a key or a secret', () => {
+  const secrets = {
+    wooKey: 'ck_SECRET_VALUE',
+    wooSecret: 'cs_SECRET_VALUE',
+    shopifyToken: 'shpat_SECRET_VALUE',
+    shopifyClientSecret: 'shpss_SECRET_VALUE'
+  };
+
+  for (const platform of ['woocommerce', 'shopify', undefined]) {
+    const serialized = JSON.stringify(describeConnection({
+      platform,
+      credentials: { ...secrets, wooUrl: 'https://garmin.co.il', shopifyDomain: 'garmin.myshopify.com' }
+    }));
+    // This object is sent to a browser; a leaked credential would be published.
+    assert.doesNotMatch(serialized, /SECRET_VALUE/, `secret leaked for platform ${platform}`);
+  }
+});
+
+test('shopify auth modes are distinguished, so a silent public fallback is visible', () => {
+  assert.equal(describeConnection({ platform: 'shopify', credentials: { shopifyDomain: 'a.myshopify.com', shopifyClientId: 'id', shopifyClientSecret: 's' } }).mode, 'shopify-client-credentials');
+  assert.equal(describeConnection({ platform: 'shopify', credentials: { shopifyDomain: 'a.myshopify.com', shopifyToken: 't' } }).mode, 'shopify-access-token');
+  assert.equal(describeConnection({ platform: 'shopify', credentials: { shopifyDomain: 'a.myshopify.com' } }).mode, 'shopify-public-fallback');
 });

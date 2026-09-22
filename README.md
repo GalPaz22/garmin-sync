@@ -38,10 +38,23 @@ anything.
 
 ## Dashboard
 
-`GET /` (also `GET /garmin`) serves a single self-contained page: the resolved
-store, the manual update button, live progress and the run log. It asks for the
-store's API key, which stays in the browser. `garmin-dashboard.html` can also be
-opened straight from disk against a remote service.
+Deployed at **https://garmin-sync-75yx.onrender.com/** — `GET /` (also
+`GET /garmin`) serves a single self-contained page: the resolved store and its
+storefront connection, the manual update button, live progress and the run log.
+
+The service address is filled in automatically from wherever the page is served,
+so nothing needs typing there. The one thing to supply is the Garmin store's API
+key, which is the `apiKey` field on its document in `users.users`. It is kept in
+the browser and sent to nothing but this service.
+
+The store panel reports how the catalog will be fetched. For WooCommerce that is
+either the REST API, when `wooKey` and `wooSecret` are both set on the store, or
+a fallback to the public `/wp-json` endpoint when they are not — the fallback
+returns a thinner catalog, so it is flagged rather than left to be discovered
+from a short run.
+
+`garmin-dashboard.html` can also be opened straight from disk; it then points at
+the deployed URL.
 
 ## API
 

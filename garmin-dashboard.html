@@ -136,7 +136,7 @@
     <div class="grid">
       <div>
         <label for="baseUrl">כתובת השירות</label>
-        <input id="baseUrl" placeholder="http://localhost:3001" value="http://localhost:3001">
+        <input id="baseUrl" placeholder="https://garmin-sync-75yx.onrender.com">
       </div>
       <div>
         <label for="apiKey">מפתח API</label>
@@ -186,7 +186,16 @@ const STORAGE_KEY = 'garminDashboard';
 let pollTimer = null;
 
 // ---- connection settings, kept in the browser only -------------------------
+// Where the service lives when the page was not served by it — opened straight
+// from disk, say. When it WAS served by the service, its own origin is right.
+const DEPLOYED_URL = 'https://garmin-sync-75yx.onrender.com';
+
+function defaultBaseUrl() {
+  return /^https?:$/.test(location.protocol) ? location.origin : DEPLOYED_URL;
+}
+
 function loadSettings() {
+  $('baseUrl').value = defaultBaseUrl();
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     if (saved.baseUrl) $('baseUrl').value = saved.baseUrl;
@@ -266,6 +275,17 @@ function renderStatus(status) {
   if (!running && pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 }
 
+const PLATFORM_LABELS = { woocommerce: 'WooCommerce', shopify: 'Shopify' };
+
+const CONNECTION_LABELS = {
+  'woo-rest-api': 'WooCommerce REST API (מפתח וסוד מוגדרים)',
+  'woo-public-fallback': 'נפילה ל-wp-json הציבורי — אין מפתח וסוד, הקטלוג עלול לחזור חלקי',
+  'shopify-client-credentials': 'Shopify client credentials',
+  'shopify-access-token': 'Shopify access token',
+  'shopify-public-fallback': 'נפילה ל-products.json הציבורי — אין הרשאות אדמין',
+  unknown: 'לא ידוע'
+};
+
 function row(label, value, tone) {
   const cls = tone ? ` class="${tone}"` : '';
   return `<tr><th style="width:38%">${escapeHtml(label)}</th><td${cls}>${value}</td></tr>`;
@@ -280,10 +300,16 @@ function renderStore(status) {
   }
 
   const store = status.store || {};
+  const connection = store.connection || {};
   const rows = [
     row('חשבון', escapeHtml(store.email || '—')),
     row('דאטהבייס', `<span class="ltr-inline">${escapeHtml(store.dbName || '—')}</span>`),
-    row('פלטפורמה', escapeHtml(store.platform || '—')),
+    row('פלטפורמה', PLATFORM_LABELS[store.platform] || escapeHtml(store.platform || '—')),
+    row('כתובת החנות', connection.url
+      ? `<span class="ltr-inline">${escapeHtml(connection.url)}</span>`
+      : '<span class="warn">חסרה — הסנכרון ייכשל</span>'),
+    row('אופן החיבור', CONNECTION_LABELS[connection.mode] || escapeHtml(connection.mode || '—'),
+      connection.hasApiCredentials ? null : 'warn'),
     row('זוהתה לפי', `<span class="tag">${escapeHtml(store.matchedField || '—')}</span> ${escapeHtml(store.matchedValue || '')}` +
       (store.exactMatch ? '' : ' <span class="tag">התאמה חלקית</span>'))
   ];
