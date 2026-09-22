@@ -36,42 +36,40 @@ whether more than one account answered to the name, so a loose match is never
 mistaken for a confident one. The dashboard shows all of it before you press
 anything.
 
-## Dashboard
+## The dashboard
 
-Deployed at **https://garmin-sync-75yx.onrender.com/** — `GET /` (also
-`GET /garmin`) serves a single self-contained page: the resolved store and its
-storefront connection, the manual update button, live progress and the run log.
+Deployed at **https://garmin-sync-75yx.onrender.com/** — one page with one
+button. Open it, press **סנכרן**, and the service syncs the Garmin store. There
+is nothing to configure and nothing to type: the store comes from `users.users`,
+and the service address comes from wherever the page was served.
 
-The service address is filled in automatically from wherever the page is served,
-so nothing needs typing there. The one thing to supply is the Garmin store's API
-key, which is the `apiKey` field on its document in `users.users`. It is kept in
-the browser and sent to nothing but this service.
-
-The store panel reports how the catalog will be fetched. For WooCommerce that is
-either the REST API, when `wooKey` and `wooSecret` are both set on the store, or
-a fallback to the public `/wp-json` endpoint when they are not — the fallback
-returns a thinner catalog, so it is flagged rather than left to be discovered
-from a short run.
+While a run is in flight the button shows its progress and the page polls; when
+the run ends it shows the result. A failure shows the reason on the button
+itself, and a `הצג יומן` link at the bottom opens the run log.
 
 `garmin-dashboard.html` can also be opened straight from disk; it then points at
 the deployed URL.
 
 ## API
 
-Both endpoints require an API key in the `x-api-key` header. Triggering an update
-additionally requires that the key belong to the Garmin store itself, so another
-store cannot drive this service.
+The service finds the Garmin store itself, so no request has to identify it.
 
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/health` | Health check (used by the host's probe) |
 | GET | `/api/garmin/config` | Which store and schedule the service is set to |
 | GET | `/api/garmin/status` | Resolved store, state, progress, logs, last run |
-| POST | `/api/garmin/sync` | Manual update — starts in the background, answers immediately |
+| POST | `/api/garmin/sync` | What the button calls — starts in the background, answers immediately |
 
-There is no stop endpoint: the underlying pipelines have no abort point, so a
-run cannot be interrupted once it starts. A second request while a run is in
-flight is refused with `409` rather than starting a competing run.
+That leaves the endpoints open to anyone with the URL, and a run spends real
+money on OpenAI and Gemini across the whole catalog. Setting **`SYNC_TOKEN`**
+closes them behind a shared token, passed either as an `x-sync-token` header or
+as `?token=` on the URL — so a bookmarked link keeps working as a
+press-and-forget button. It is unset by default.
+
+Pressing twice does not start two runs: the second call is refused with `409`.
+There is no stop endpoint, because the underlying pipelines have no abort point
+once a run starts.
 
 ## Running locally
 
@@ -104,6 +102,7 @@ Cron Job that calls `POST /api/garmin/sync` with the store's API key.
 | GOOGLE_AI_API_KEY | Used for translation and classification | Yes |
 | PORT | Server port (default: 3001) | No |
 | GARMIN_STORE | Store name in `users.users` (default: `garmin`) | No |
+| SYNC_TOKEN | Shared token required by the API when set; open when unset | No |
 | GARMIN_CRON_SCHEDULE | Schedule (default: `0 2,14 * * *`) | No |
 | GARMIN_CRON_TIMEZONE | Timezone (default: `UTC`) | No |
 | ALLOWED_ORIGINS | Extra browser origins allowed to call the API | No |

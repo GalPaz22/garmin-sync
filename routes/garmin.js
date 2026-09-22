@@ -1,50 +1,41 @@
 /**
  * Garmin sync API.
  *
- * The service is for one store, so every route resolves that store from
- * `users.users` rather than from the caller. The API key still has to belong to
- * that same store, so another store's key cannot drive this service.
+ * The service is for one store and finds it itself, in `users.users`, so no
+ * caller has to identify the store or carry its API key — the dashboard is a
+ * single button.
+ *
+ * That leaves the endpoints open by default. A run costs real money (it calls
+ * OpenAI and Gemini across the whole catalog), so setting SYNC_TOKEN closes
+ * them behind a shared token without changing anything about how the button
+ * works for whoever has the link.
  */
 
 import express from 'express';
-import { runGarminSync, getGarminStatus, isGarminSyncRunning } from '../lib/garminSync.js';
-import { resolveGarminStore, resolveStoreConfig, STORE_IDENTIFIER } from '../lib/garminStore.js';
+import { runGarminSync, getGarminStatus, isGarminSyncRunning, checkGarminStore } from '../lib/garminSync.js';
+import { STORE_IDENTIFIER } from '../lib/garminStore.js';
 import { GARMIN_CRON_SCHEDULE, GARMIN_CRON_TIMEZONE } from '../lib/garminCron.js';
 
 const router = express.Router();
 
+const SYNC_TOKEN = (process.env.SYNC_TOKEN || '').trim();
+
 /**
- * The caller must be the Garmin store itself. Returns the resolved store, or
- * answers the request and returns null.
+ * Open unless SYNC_TOKEN is set, in which case every call carries it — as the
+ * `x-sync-token` header, or as `?token=` so a plain link still works.
  */
-async function requireGarminStore(req, res) {
-  const resolved = await resolveGarminStore();
+router.use((req, res, next) => {
+  if (!SYNC_TOKEN) return next();
 
-  if (!resolved) {
-    res.status(404).json({
-      error: `No store named "${STORE_IDENTIFIER}" was found in users.users`,
-      details: 'Set GARMIN_STORE to the name the store is registered under.'
-    });
-    return null;
-  }
+  const provided = req.headers['x-sync-token'] || req.query.token;
+  if (provided === SYNC_TOKEN) return next();
 
-  const config = resolveStoreConfig(resolved.user);
-  const callerDbName = req.user?.dbName || req.user?.credentials?.dbName;
-
-  if (!config.dbName || callerDbName !== config.dbName) {
-    res.status(403).json({
-      error: 'This API key does not belong to the Garmin store',
-      details: `This service only updates "${STORE_IDENTIFIER}". Use that store's own API key.`
-    });
-    return null;
-  }
-
-  return { resolved, config };
-}
+  return res.status(401).json({ error: 'Missing or invalid sync token' });
+});
 
 /**
  * GET /api/garmin/config
- * What the service is set to do — shown in the dashboard header.
+ * What the service is set to do — shown under the button.
  */
 router.get('/config', (req, res) => {
   res.json({
@@ -57,8 +48,7 @@ router.get('/config', (req, res) => {
 
 /**
  * GET /api/garmin/status
- * Which store was resolved and how, plus progress and logs for the dashboard's
- * polling. Any authenticated caller may read it, since it only reports.
+ * Which store was resolved, whether a run is in flight, and the last result.
  */
 router.get('/status', async (req, res) => {
   try {
@@ -77,8 +67,8 @@ router.get('/status', async (req, res) => {
 
 /**
  * POST /api/garmin/sync
- * The manual update button. Starts in the background and answers immediately,
- * because a full run is far longer than any browser will wait.
+ * The button. Resolves the Garmin store itself, starts in the background and
+ * answers immediately, because a full run is far longer than a browser waits.
  */
 router.post('/sync', async (req, res) => {
   try {
@@ -86,11 +76,14 @@ router.post('/sync', async (req, res) => {
       return res.status(409).json({ error: 'A Garmin update is already running', state: 'running' });
     }
 
-    const target = await requireGarminStore(req, res);
-    if (!target) return;
+    // Anything that can be known before the run starts is answered now, so a
+    // misconfigured store shows on the button instead of as a run that appears
+    // to start and quietly never happens.
+    const check = await checkGarminStore();
+    if (!check.ok) return res.status(400).json({ state: 'error', error: check.error });
 
-    const triggeredBy = req.user?.email || 'manual';
-    console.log(`📊 [GARMIN] Manual update requested by ${triggeredBy} for ${target.config.dbName}`);
+    const triggeredBy = req.headers['x-triggered-by'] || 'dashboard';
+    console.log(`📊 [GARMIN] Manual update requested (${triggeredBy}) for ${check.store.dbName}`);
 
     runGarminSync({ triggeredBy })
       .then(result => console.log('[GARMIN] Manual run finished:', result))
@@ -99,8 +92,7 @@ router.post('/sync', async (req, res) => {
     res.json({
       state: 'running',
       message: 'Garmin update started in the background',
-      store: { dbName: target.config.dbName, email: target.config.email || null },
-      triggeredBy,
+      store: check.store,
       triggeredAt: new Date().toISOString()
     });
   } catch (error) {

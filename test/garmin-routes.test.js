@@ -42,15 +42,13 @@ register(pathToFileURL(new URL('./helpers/mongodbStubLoader.mjs', import.meta.ur
 
 let server;
 let baseUrl;
-// Which store the fake API key belongs to; swapped per test.
-let caller = { email: 'info@garmin.co.il', dbName: 'garmin' };
 
 before(async () => {
   const garminRouter = (await import('../routes/garmin.js')).default;
   const app = express();
   app.use(express.json());
-  // Stands in for the API-key middleware, which has its own coverage.
-  app.use('/api/garmin', (req, _res, next) => { req.user = caller; next(); }, garminRouter);
+  // Mounted exactly as server.js mounts it: no caller identity at all.
+  app.use('/api/garmin', garminRouter);
   server = app.listen(0);
   await new Promise(resolve => server.once('listening', resolve));
   baseUrl = `http://127.0.0.1:${server.address().port}`;
@@ -82,23 +80,29 @@ test('status names the store it resolved and how it matched', async () => {
   assert.equal(body.running, false);
 });
 
-test('another store cannot drive this service with its own key', async () => {
-  caller = { email: 'shop@polar.example', dbName: 'polar' };
-  try {
-    const { status, body } = await call('/api/garmin/sync', { method: 'POST' });
-    assert.equal(status, 403);
-    assert.match(body.error, /does not belong to the Garmin store/);
-  } finally {
-    caller = { email: 'info@garmin.co.il', dbName: 'garmin' };
-  }
-});
-
-test('the manual update starts in the background and answers immediately', async () => {
+test('the button needs nothing from the caller to sync the right store', async () => {
+  // No key, no store name, no body — the service finds Garmin in users.users.
   const { status, body } = await call('/api/garmin/sync', { method: 'POST' });
   assert.equal(status, 200);
   assert.equal(body.state, 'running');
-  assert.equal(body.store.dbName, 'garmin');
-  assert.equal(body.triggeredBy, 'info@garmin.co.il');
+});
+
+test('a second press while a run is in flight does not start a competing run', async () => {
+  // Driven through the library, not HTTP, so the assertion does not depend on
+  // the first run still being in flight when the second request lands.
+  const { runGarminSync, isGarminSyncRunning } = await import('../lib/garminSync.js');
+
+  const first = runGarminSync({ triggeredBy: 'test' });
+  // The slot must be claimed synchronously: claiming after an await would let
+  // two presses both see an idle service and both start.
+  assert.equal(isGarminSyncRunning(), true, 'the slot must be claimed before any await');
+
+  const second = await runGarminSync({ triggeredBy: 'test' });
+  assert.equal(second.skipped, true);
+  assert.match(second.error, /already running/);
+
+  await first;
+  assert.equal(isGarminSyncRunning(), false, 'the slot must be released when the run ends');
 });
 
 test('a failed run settles into an error state instead of staying "running"', async () => {

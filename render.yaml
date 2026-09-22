@@ -18,6 +18,9 @@ services:
         sync: false
       - key: GARMIN_STORE
         value: garmin
+      # Optional: set a value to require a token on the API.
+      - key: SYNC_TOKEN
+        sync: false
       - key: GARMIN_CRON_SCHEDULE
         value: 0 2,14 * * *
       - key: GARMIN_CRON_TIMEZONE

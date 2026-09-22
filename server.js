@@ -7,7 +7,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import healthRouter from './routes/health.js';
 import garminRouter from './routes/garmin.js';
-import { authenticateRequest } from './middleware/auth.js';
 import { startGarminCron } from './lib/garminCron.js';
 
 // Load environment variables
@@ -52,7 +51,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'X-Sync-Token', 'X-Requested-With']
 };
 
 app.use(cors(corsOptions));
@@ -76,14 +75,13 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Request logging
 app.use((req, res, next) => {
-  console.log(`📨 [${new Date().toISOString()}] ${req.method} ${req.path} | origin: ${req.headers.origin || 'N/A'} | key: ${req.headers['x-api-key'] ? 'present' : 'missing'}`);
+  console.log(`📨 [${new Date().toISOString()}] ${req.method} ${req.path} | origin: ${req.headers.origin || 'N/A'}`);
   next();
 });
 
-// The dashboard — a single self-contained page that asks the operator for their
-// own API key, so serving the page itself needs no auth. It carries its markup,
-// styles and script inline (it is also meant to be openable straight from disk),
-// so this one response relaxes helmet's CSP to allow them.
+// The dashboard — one page, one button. It carries its markup, styles and
+// script inline (it is also meant to be openable straight from disk), so this
+// one response relaxes helmet's CSP to allow them.
 const sendDashboard = (req, res) => {
   res.setHeader(
     'Content-Security-Policy',
@@ -97,8 +95,9 @@ app.get('/garmin', sendDashboard);
 // Public: health check, used by the host's health probe
 app.use('/health', healthRouter);
 
-// Protected: everything that touches a catalog requires the store's API key
-app.use('/api/garmin', authenticateRequest, garminRouter);
+// The service finds the Garmin store itself, so no caller identifies it.
+// Set SYNC_TOKEN to put these behind a shared token (see routes/garmin.js).
+app.use('/api/garmin', garminRouter);
 
 // Error handling
 app.use((err, req, res, next) => {
