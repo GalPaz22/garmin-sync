@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>עדכון מוצרי גארמין</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2128;
+    --line: #2a313c;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #2f81f7;
+    --ok: #3fb950;
+    --warn: #d29922;
+    --err: #f85149;
+    --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 24px 16px 64px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+
+  header { margin-bottom: 24px; }
+  h1 { font-size: 1.75rem; font-weight: 650; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 0.95rem; margin-top: 4px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .panel h2 { font-size: 1rem; font-weight: 600; margin-bottom: 14px; color: var(--text); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+  input {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 0.95rem;
+    font-family: inherit;
+    direction: ltr;
+    text-align: left;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 4px; }
+  button {
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 11px 20px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    font-weight: 550;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, opacity .15s;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover:not(:disabled) { background: #1f6feb; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .stat .k { font-size: 0.8rem; color: var(--muted); }
+  .stat .v { font-size: 1.5rem; font-weight: 650; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); }
+  .pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pill.idle { color: var(--muted); }
+  .pill.running { color: var(--accent); }
+  .pill.done { color: var(--ok); }
+  .pill.stopped { color: var(--warn); }
+  .pill.error { color: var(--err); }
+
+  .bar { height: 6px; background: var(--panel-2); border-radius: 999px; overflow: hidden; margin-top: 14px; }
+  .bar > div { height: 100%; width: 0%; background: var(--accent); transition: width .4s ease; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th, td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 550; font-size: 0.8rem; }
+  td.ltr { direction: ltr; text-align: right; font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace; font-size: 0.82rem; }
+  .tag { font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+  .scroll { max-height: 340px; overflow: auto; }
+
+  pre.logs {
+    background: #0b0f14;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    max-height: 300px;
+    overflow: auto;
+    direction: ltr;
+    text-align: left;
+    font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .empty { color: var(--muted); font-size: 0.9rem; padding: 8px 0; }
+  .warn { color: var(--warn); }
+  .ltr-inline { direction: ltr; unicode-bidi: isolate; font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace; font-size: 0.85em; }
+  .note { color: var(--muted); font-size: 0.82rem; margin-top: 10px; }
+  .msg { border-radius: 8px; padding: 10px 14px; font-size: 0.9rem; margin-top: 12px; display: none; }
+  .msg.show { display: block; }
+  .msg.ok { background: rgba(63,185,80,.12); border: 1px solid rgba(63,185,80,.4); color: var(--ok); }
+  .msg.err { background: rgba(248,81,73,.12); border: 1px solid rgba(248,81,73,.4); color: var(--err); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>עדכון מוצרי גארמין</h1>
+    <p class="sub">שירות ייעודי שמעדכן את הקטלוג של חנות גארמין בלבד. רץ אוטומטית פעמיים ביום, ואפשר להריץ ידנית בכל רגע.</p>
+  </header>
+
+  <section class="panel">
+    <h2>חיבור</h2>
+    <div class="grid">
+      <div>
+        <label for="baseUrl">כתובת השירות</label>
+        <input id="baseUrl" placeholder="http://localhost:3001" value="http://localhost:3001">
+      </div>
+      <div>
+        <label for="apiKey">מפתח API</label>
+        <input id="apiKey" type="password" placeholder="x-api-key">
+      </div>
+    </div>
+    <p class="note">הפרטים נשמרים בדפדפן שלך בלבד ולא נשלחים לשום מקום מלבד השירות עצמו.</p>
+  </section>
+
+  <section class="panel">
+    <h2>החנות שמתעדכנת</h2>
+    <p class="note" style="margin-top:0;margin-bottom:14px">השירות מאתר את החנות בקולקשן <span class="ltr-inline">users.users</span>. שווה לוודא שזו באמת החנות הנכונה לפני שמריצים עדכון.</p>
+    <table>
+      <tbody id="storeBody"><tr><td colspan="2" class="empty">נטען…</td></tr></tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h2>מצב הסנכרון</h2>
+    <div class="stats">
+      <div class="stat"><div class="k">מצב</div><div class="v"><span id="statePill" class="pill idle">לא ידוע</span></div></div>
+      <div class="stat"><div class="k">מוצרים בקטלוג</div><div class="v" id="productCount">—</div></div>
+      <div class="stat"><div class="k">התקדמות בריצה</div><div class="v" id="progress">—</div></div>
+      <div class="stat"><div class="k">עדכון אחרון שהושלם</div><div class="v" id="lastRun" style="font-size:1rem">—</div></div>
+    </div>
+    <div class="bar"><div id="barFill"></div></div>
+
+    <div class="actions" style="margin-top:18px">
+      <button id="syncBtn" class="primary">עדכן עכשיו</button>
+      <button id="refreshBtn">רענן מצב</button>
+    </div>
+
+    <div id="msg" class="msg"></div>
+    <p class="note" id="scheduleNote">תזמון אוטומטי: נטען…</p>
+  </section>
+
+  <section class="panel">
+    <h2>יומן הריצה</h2>
+    <pre class="logs" id="logs">אין עדיין לוגים.</pre>
+  </section>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const STORAGE_KEY = 'garminDashboard';
+let pollTimer = null;
+
+// ---- connection settings, kept in the browser only -------------------------
+function loadSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    if (saved.baseUrl) $('baseUrl').value = saved.baseUrl;
+    if (saved.apiKey) $('apiKey').value = saved.apiKey;
+  } catch { /* first visit, or storage blocked */ }
+}
+function saveSettings() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ baseUrl: $('baseUrl').value.trim(), apiKey: $('apiKey').value.trim() }));
+  } catch { /* storage blocked — the page still works for this session */ }
+}
+$('baseUrl').addEventListener('change', saveSettings);
+$('apiKey').addEventListener('change', saveSettings);
+
+const baseUrl = () => $('baseUrl').value.trim().replace(/\/+$/, '');
+
+async function api(path, options = {}) {
+  const key = $('apiKey').value.trim();
+  if (!key) throw new Error('חסר מפתח API');
+  const response = await fetch(baseUrl() + path, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, ...(options.headers || {}) }
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || ('שגיאה ' + response.status));
+  return body;
+}
+
+function say(text, kind = 'ok') {
+  const box = $('msg');
+  box.textContent = text;
+  box.className = 'msg show ' + kind;
+  if (kind === 'ok') setTimeout(() => box.classList.remove('show'), 6000);
+}
+
+// ---- rendering -------------------------------------------------------------
+const STATE_LABELS = {
+  idle: 'ממתין', running: 'רץ עכשיו', processing: 'רץ עכשיו',
+  done: 'הושלם', error: 'שגיאה', unconfigured: 'לא מוגדר'
+};
+const STATE_CLASS = {
+  idle: 'idle', running: 'running', processing: 'running',
+  done: 'done', error: 'error', unconfigured: 'stopped'
+};
+
+const formatTime = value => value ? new Date(value).toLocaleString('he-IL') : '—';
+
+function renderStatus(status) {
+  const state = status.running ? 'running' : (status.state || 'idle');
+  const pill = $('statePill');
+  pill.textContent = STATE_LABELS[state] || state;
+  pill.className = 'pill ' + (STATE_CLASS[state] || 'idle');
+
+  $('productCount').textContent = status.productCount ?? '—';
+  $('lastRun').textContent = formatTime(status.lastSuccessAt || status.finishedAt);
+
+  const done = Number(status.done) || 0;
+  const total = Number(status.total) || 0;
+  $('progress').textContent = total ? `${done}/${total}` : (done ? String(done) : '—');
+  $('barFill').style.width = total ? Math.min(100, Math.round(done / total * 100)) + '%' : '0%';
+
+  const running = state === 'running' || state === 'processing';
+  $('syncBtn').disabled = running || !status.storeFound;
+  $('syncBtn').textContent = running ? 'מתעדכן…' : 'עדכן עכשיו';
+
+  if (status.schedule) {
+    $('scheduleNote').textContent = `תזמון אוטומטי: ${status.schedule} (${status.timezone || 'UTC'}) · חנות: ${status.storeIdentifier || '—'}`;
+  }
+  renderStore(status);
+  if (status.lastError) say('השגיאה האחרונה: ' + status.lastError, 'err');
+
+  const logs = Array.isArray(status.logs) ? status.logs : [];
+  $('logs').textContent = logs.length ? logs.join('\n') : 'אין עדיין לוגים.';
+
+  // Poll only while something is actually running.
+  if (running && !pollTimer) pollTimer = setInterval(refreshStatus, 4000);
+  if (!running && pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+function row(label, value, tone) {
+  const cls = tone ? ` class="${tone}"` : '';
+  return `<tr><th style="width:38%">${escapeHtml(label)}</th><td${cls}>${value}</td></tr>`;
+}
+
+function renderStore(status) {
+  const body = $('storeBody');
+
+  if (!status.storeFound) {
+    body.innerHTML = `<tr><td colspan="2" class="empty">לא נמצאה חנות בשם "${escapeHtml(status.storeIdentifier || '')}" ב-users.users. אפשר לשנות את השם שמחפשים במשתנה GARMIN_STORE.</td></tr>`;
+    return;
+  }
+
+  const store = status.store || {};
+  const rows = [
+    row('חשבון', escapeHtml(store.email || '—')),
+    row('דאטהבייס', `<span class="ltr-inline">${escapeHtml(store.dbName || '—')}</span>`),
+    row('פלטפורמה', escapeHtml(store.platform || '—')),
+    row('זוהתה לפי', `<span class="tag">${escapeHtml(store.matchedField || '—')}</span> ${escapeHtml(store.matchedValue || '')}` +
+      (store.exactMatch ? '' : ' <span class="tag">התאמה חלקית</span>'))
+  ];
+
+  if (store.active === false) {
+    rows.push(row('שים לב', 'החנות מסומנת כלא פעילה, כך שהסנכרון הכללי מדלג עליה.', 'warn'));
+  }
+  if (store.ambiguous && store.ambiguous.length > 1) {
+    const others = store.ambiguous.map(entry => entry.email || entry.dbName || '—').join(', ');
+    rows.push(row('אזהרה', `יותר מחשבון אחד מתאים לשם הזה: ${escapeHtml(others)}. השירות בחר את הראשון.`, 'warn'));
+  }
+
+  body.innerHTML = rows.join('');
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+}
+
+// ---- actions ---------------------------------------------------------------
+async function refreshStatus() {
+  try {
+    renderStatus(await api('/api/garmin/status'));
+  } catch (error) {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    say(error.message, 'err');
+  }
+}
+
+async function startSync() {
+  $('syncBtn').disabled = true;
+  try {
+    await api('/api/garmin/sync', { method: 'POST' });
+    say('העדכון התחיל. המסך יתעדכן לבד תוך כדי הריצה.');
+    await refreshStatus();
+  } catch (error) {
+    say(error.message, 'err');
+    $('syncBtn').disabled = false;
+  }
+}
+
+$('syncBtn').addEventListener('click', startSync);
+$('refreshBtn').addEventListener('click', refreshStatus);
+
+loadSettings();
+if ($('apiKey').value.trim()) refreshStatus();
+</script>
+</body>
+</html>

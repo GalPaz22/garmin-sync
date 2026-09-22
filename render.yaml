@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: garmin-sync
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set these in the Render dashboard — never commit their values.
+      - key: MONGODB_URI
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_AI_API_KEY
+        sync: false
+      - key: GARMIN_STORE
+        value: garmin
+      - key: GARMIN_CRON_SCHEDULE
+        value: 0 2,14 * * *
+      - key: GARMIN_CRON_TIMEZONE
+        value: UTC
